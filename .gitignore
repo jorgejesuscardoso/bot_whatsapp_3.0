@@ -4,3 +4,6 @@
 node_modules/
 # ignorar arquivos de build
 dist/
+
+# ignorar auth
+auth/
