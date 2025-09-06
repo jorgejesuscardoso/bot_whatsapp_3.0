@@ -1,0 +1,6 @@
+# ignorar arquivos de configuração do ambiente
+.env
+# ignorar dependências
+node_modules/
+# ignorar arquivos de build
+dist/
