@@ -61,7 +61,7 @@ bootstrap()
 setInterval(async () => {
   console.log("🔄 Mantendo o servidor ativo...")
   try {
-    await axios.get("https://ming-yoongi-bot.onrender.com")
+    await axios.get("https://map-v3.onrender.com/bot/status")
     console.log("✅ Servidor mantido ativo!")
   } catch (error) {
     console.error("❌ Erro ao tentar manter o servidor ativo:", error)
