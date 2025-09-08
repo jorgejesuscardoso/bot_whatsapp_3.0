@@ -16,6 +16,6 @@ export class MsgAboutBullying {
   }
 
   toDaddyTroller() {
-    return "Vou te caguetar pra mainha! 😡"
+    return "Vou te dedurar pra mainha! 😡"
   }
 }

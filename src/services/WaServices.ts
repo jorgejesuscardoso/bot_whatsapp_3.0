@@ -9,10 +9,18 @@ import makeWASocket,
 import { logger } from '../utils/logger'
 import { Boom } from '@hapi/boom'
 import qrcode from 'qrcode-terminal'
-import { welcome } from '../utils/msgDefaults'
+import { welcome } from '../utils/msg/msgDefaults'
 
 export class WhatsAppService {
   private sock: WASocket | undefined
+  private ready: Promise<void>
+  private resolveReady!: () => void
+
+  constructor() {
+    this.ready = new Promise((resolve) => {
+      this.resolveReady = resolve
+    })
+  }
 
   async initialize(onMessage: (msg: proto.IWebMessageInfo) => void) {
     const { state, saveCreds } = await useMultiFileAuthState('auth')
@@ -43,7 +51,8 @@ export class WhatsAppService {
         logger.error(`Conexão encerrada: ${code}`)
         if (code !== DisconnectReason.loggedOut) this.initialize(onMessage)
       } else if (connection === 'open') {
-        logger.success('Bot conectado ao WhatsApp!')
+        logger.success('Bot conectado ao WhatsApp!')        
+        this.resolveReady() // <<< libera a promise
       }
     })
 
@@ -82,6 +91,10 @@ export class WhatsAppService {
         }
       }
     })
+  }
+
+   async waitUntilReady() {
+    await this.ready
   }
 
   async getGroupAdmins(jid: string): Promise<string[]> {

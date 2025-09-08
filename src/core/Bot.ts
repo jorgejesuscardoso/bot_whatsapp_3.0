@@ -2,12 +2,13 @@ import { WhatsAppService } from '../services/WaServices'
 import { proto } from '@whiskeysockets/baileys'
 import { logger } from '../utils/logger'
 import { GROUPS } from '../groups'
-import { MsgTo } from '../utils/msgPersonality'
-import { MsgAboutBullying } from '../utils/msgAboutBullying'
-import { BullyingList } from '../utils/bullyingList'
+import { MsgTo } from '../utils/msg/msgPersonality'
+import { MsgAboutBullying } from '../utils/msg/msgAboutBullying'
+import { BullyingList } from '../utils/list/bullyingList'
 import { goodMorning } from '../utils/greetings'
 import { goodAfternoon } from '../utils/greetings'
 import { goodNight } from '../utils/greetings'
+import { commandsMenu } from '../utils/menu'
 
 const phoneNumbers = {
   bot: '557381062081',
@@ -15,6 +16,8 @@ const phoneNumbers = {
   bushido: '557381971736', 
   erica: '557391831250',
   anna: '557381828372',
+  dira: '557499385661',
+  leh: '558587626062',
 }
 
 const botName = ['yoonie', 'min yoongi', 'yoongi', 'yoon']
@@ -73,14 +76,17 @@ export class Bot {
     const botId = normalize(this.wa.getSocket()?.user?.id || '');
     const botMentioned = mentionedJids.some(j => normalize(j) === botId);
 
-
+    // NAO ESQUECER DE NORMALIZAR OS NUMEROS////
     const numbers = {
       bot: normalize(phoneNumbers.bot),
       yu: normalize(phoneNumbers.yu),
       bushido: normalize(phoneNumbers.bushido),
       erica: normalize(phoneNumbers.erica),
       anna: normalize(phoneNumbers.anna),
+      dira: normalize(phoneNumbers.dira),
+      leh: normalize(phoneNumbers.leh),
     };
+
     // --- aqui entra tua lógica ---
     if (senderIdNormalize === phoneNumbers.bot) {
       // se for o próprio bot, ignora
@@ -129,7 +135,7 @@ export class Bot {
       return;
     }
 
-
+    // --- Responder bullying ---
     if ((botMentioned || botNameUsed) && hasBullying) {
       if (senderIdNormalize === numbers.anna) {
         const response = this.msgAboutBullying.toAnna();
@@ -150,8 +156,9 @@ export class Bot {
       return;
     }
 
+    // --- Responder menções ou uso do nome do bot ---
     if (botNameUsed) {      
-      let response = "Quié Djabo!!😡"
+      let response = "Oié, como posso ajudar?";
        if (senderIdNormalize === numbers.yu) {
           response = this.msgTo.toYu();
         } else if (senderIdNormalize === numbers.bushido) {
@@ -160,14 +167,19 @@ export class Bot {
           response = this.msgTo.toErica();
         } else if (senderIdNormalize === numbers.anna) {
           response = this.msgTo.toAnna();
+        } else if (senderIdNormalize === numbers.dira) {
+          response = this.msgTo.toDira();
+        } else if (senderIdNormalize === numbers.leh) {
+          response = this.msgTo.toLeh();
         }
+
       await this.wa.sendMessage(sender, { text: response }, { quoted: msg })
       return
     }
     
 
 
-    if (!senderIsAdmin && (content === '&marcar' || content === '&citar')) {
+    if (!senderIsAdmin && (content === '&marcar' || content === '&citar' || content === '&menu')) {
       logger.info(`[${group.name}] ${authorName} tentou usar "${content}" sem permissão`)
       await this.wa.sendMessage(sender, {
         text: '❌ Apenas administradores podem usar este comando.',
@@ -225,5 +237,13 @@ export class Bot {
         mentions,
       }, { quoted: msg })
       }
+    
+    if (content === '&menu') {
+
+
+    await this.wa.sendMessage(sender, {
+      text: commandsMenu,
+    }, { quoted: msg })
+    }
   }
 }

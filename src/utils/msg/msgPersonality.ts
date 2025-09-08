@@ -19,7 +19,14 @@ export class MsgTo {
     return "Oi amor da minha vida💘 Como esse humilde servo poder lhe ser util?💘👑✨"
   }
 
-  
+  toDira() {
+    return "Oque desejas, 0.7?"
+  }
+
+  toLeh() {
+    return "Salve Leh! 👑 Não me bane não, eu juro que tô de boa 🙏😂"
+  }
+
 }
 
 
