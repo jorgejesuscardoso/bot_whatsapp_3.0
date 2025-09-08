@@ -155,7 +155,6 @@ export class Bot {
       await this.wa.sendMessage(sender, { text: response }, { quoted: msg });
       return;
     }
-
     // --- Responder menções ou uso do nome do bot ---
     if (botNameUsed) {      
       let response = "Oié, como posso ajudar?";
@@ -173,11 +172,11 @@ export class Bot {
           response = this.msgTo.toLeh();
         }
 
+      console.log("✅ Resposta pronta:", response);
       await this.wa.sendMessage(sender, { text: response }, { quoted: msg })
       return
     }
     
-
 
     if (!senderIsAdmin && (content === '&marcar' || content === '&citar' || content === '&menu')) {
       logger.info(`[${group.name}] ${authorName} tentou usar "${content}" sem permissão`)
@@ -240,7 +239,7 @@ export class Bot {
     
     if (content === '&menu') {
 
-
+    console.log("✅ Chegou aqui 3.");
     await this.wa.sendMessage(sender, {
       text: commandsMenu,
     }, { quoted: msg })

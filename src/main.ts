@@ -2,6 +2,7 @@
 import { bot } from "./app"
 import express from "express"
 import { waService } from "./app"
+import axios from "axios"
 
 async function bootstrap() {
   await bot.start()
@@ -55,3 +56,14 @@ Com carinho,
 }
 
 bootstrap()
+
+// manter servidor ativo
+setInterval(async () => {
+  console.log("🔄 Mantendo o servidor ativo...")
+  try {
+    await axios.get("https://ming-yoongi-bot.onrender.com")
+    console.log("✅ Servidor mantido ativo!")
+  } catch (error) {
+    console.error("❌ Erro ao tentar manter o servidor ativo:", error)
+  }
+}, 12 * 60 * 1000) // a cada 12 minutos
