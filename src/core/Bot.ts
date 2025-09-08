@@ -39,7 +39,6 @@ export class Bot {
     
   }
 
-
   //configuração de comandos e msg
   private async handleMessage(msg: proto.IWebMessageInfo) {
     if (!msg.message || msg.key.fromMe) return
@@ -239,7 +238,6 @@ export class Bot {
     
     if (content === '&menu') {
 
-    console.log("✅ Chegou aqui 3.");
     await this.wa.sendMessage(sender, {
       text: commandsMenu,
     }, { quoted: msg })
