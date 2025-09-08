@@ -171,7 +171,6 @@ export class Bot {
           response = this.msgTo.toLeh();
         }
 
-      console.log("✅ Resposta pronta:", response);
       await this.wa.sendMessage(sender, { text: response }, { quoted: msg })
       return
     }
