@@ -192,6 +192,7 @@ export class Bot {
       }, { quoted: msg })
     }
 
+    
 
     if (content === '&marcar') {
       const participantes = await this.wa.getGroupParticipants(sender)
