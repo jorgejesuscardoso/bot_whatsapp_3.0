@@ -174,7 +174,6 @@ export class Bot {
       await this.wa.sendMessage(sender, { text: response }, { quoted: msg })
       return
     }
-    
 
     if (!senderIsAdmin && (content === '&marcar' || content === '&citar' || content === '&menu')) {
       logger.info(`[${group.name}] ${authorName} tentou usar "${content}" sem permissão`)
