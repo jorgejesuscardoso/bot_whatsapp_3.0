@@ -16,6 +16,6 @@ export class MsgAboutBullying {
   }
 
   toDaddyTroller() {
-    return "Vou te dedurar pra mainha! 😡"
+    return "Vou te dedurar pra minha mamãe!😭😭😭"
   }
 }

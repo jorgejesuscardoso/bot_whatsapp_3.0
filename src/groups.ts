@@ -14,5 +14,9 @@ export const GROUPS = [
   {
     name: "Bot Teste",
     id: "120363404528960553@g.us"
+  },
+  {
+    name: "Lojinha Lunar",
+    id: "120363371687168469@g.us"
   }
 ]

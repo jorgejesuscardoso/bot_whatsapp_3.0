@@ -8,11 +8,11 @@ export class MsgTo {
   }
 
   toBushido() {
-    return "Oque desejas de mim, painho?"
+    return "Oque desejas de mim, Mestre? 😁🤭👑"
   }
 
   toErica() {
-    return "Oi Dona do meu Painho 💘💅🔥 Como posso ajudar a senhora, mainha?"
+    return "Oi Dona do meu Painho 💘💅🔥 Como posso ajudar a senhora, minha mamãe? 👑✨"
   }
 
   toAnna() {
@@ -20,11 +20,11 @@ export class MsgTo {
   }
 
   toDira() {
-    return "Oque desejas, 0.7?"
+    return "Oque desejas, 0.7? 😁🤭😂"
   }
 
   toLeh() {
-    return "Salve Leh! 👑 Não me bane não, eu juro que tô de boa 🙏😂"
+    return "Salve Leh!👑 Não me bane não, eu juro que tô de boa 🙏😂"
   }
 
 }

@@ -9,16 +9,40 @@ import { goodMorning } from '../utils/greetings'
 import { goodAfternoon } from '../utils/greetings'
 import { goodNight } from '../utils/greetings'
 import { commandsMenu } from '../utils/menu'
+import { BehaviorList } from '../utils/list/behavior'
+import { FallingInLoveList, MarryList } from '../utils/list/fallInLoveList'
+import { tantrumMsg, textRemove } from '../utils/msg/msgTantrum'
 
 const phoneNumbers = {
   bot: '557381062081',
-  yu: '553898051752', 
-  bushido: '557381971736', 
+  yu: '180603542630589', 
+  bushido: '67350002954389', 
   erica: '557391831250',
-  anna: '557381828372',
+  anna: '236077289853042',
   dira: '557499385661',
   leh: '558587626062',
 }
+
+function normalizeText(txt: string) {
+  return txt
+    .toLowerCase()
+    .normalize('NFD') // remove acentos
+    .replace(/[\u0300-\u036f]/g, '');
+}
+
+let greetingsSended = [] as string[]
+let wrongGreetingsSended = [] as string[]
+let behaviorSended = [] as string[]
+let disableGreetings = false
+let countMsgRemovedYou = [] as string[]
+
+//clear cache
+setInterval(() => {
+  greetingsSended = []
+  wrongGreetingsSended = []
+  disableGreetings = false
+  countMsgRemovedYou = []
+}, 60 * 60 * 1000) // limpa a cada 1 horas
 
 const botName = ['yoonie', 'min yoongi', 'yoongi', 'yoon']
 
@@ -41,7 +65,7 @@ export class Bot {
 
   //configuração de comandos e msg
   private async handleMessage(msg: proto.IWebMessageInfo) {
-    if (!msg.message || msg.key.fromMe) return
+    if (!msg.message) return
 
     const sender = msg.key.remoteJid!
     const group = GROUPS.find(g => g.id === sender)
@@ -56,24 +80,61 @@ export class Bot {
       msg.message?.videoMessage?.caption ||
       ''
 
+    // Especiais
+    const fallingInLove = FallingInLoveList.some(f => content.toLowerCase().includes(f.toLowerCase()))
+    const marry = MarryList.some(m => content.toLowerCase().includes(m.toLowerCase()))
+
+
+    // Quem enviou a mensagem
     const author = msg.pushName || msg.key.participant || msg.key.remoteJid || 'desconhecido'
     const authorName = author.split('@')[0]
 
-    logger.info(`[${group.name}] ${authorName}: ${content}`)
 
     const senderId = msg.key.participant || msg.key.remoteJid
     const admins = await this.wa.getGroupAdmins(sender)
     const senderIsAdmin = admins.includes(senderId!)
 
+    // Normaliza o JID para comparação (remove tudo que não for número)
+    const normalize = (jid?: string) => {
+        const raw = (jid || '').split('@')[0]; // remove o @s.whatsapp.net
+        return raw.split(':')[0]; // remove o :60
+    };
+
+    const senderIdNormalize = normalize(msg.key.participant || msg.key.remoteJid || '');
+    
+    console.log('Sender Normalizado:', senderIdNormalize);
+    // pega o id do bot pra comparar
+    const botId = normalize(this.wa.getSocket()?.user?.id || '');
+
     // Responder ao ser mencionado ou ao usar o nome do bot
     const mentionedJids: string[] = msg.message?.extendedTextMessage?.contextInfo?.mentionedJid || [];
     const botNameUsed = botName.some(name => content.toLowerCase().includes(name))
-
-    const normalize = (jid?: string) => (jid || '').replace(/[^0-9]/g, '');
-    const senderIdNormalize = normalize(msg.key.participant || msg.key.remoteJid || '');
-    // pega o id do bot pra comparar
-    const botId = normalize(this.wa.getSocket()?.user?.id || '');
     const botMentioned = mentionedJids.some(j => normalize(j) === botId);
+
+
+
+    const botReplied = (() => {
+      const contextInfo = msg.message?.extendedTextMessage?.contextInfo;
+
+      if (!contextInfo || !contextInfo.quotedMessage) return false;
+
+        // Pega o id do bot
+        const botJid = this.wa.getSocket()?.user?.id || '';
+        const botId = normalize(botJid);
+
+        // Normaliza quem mandou a msg original respondida
+        const originalSender = normalize(contextInfo.participant || '');
+
+        // Se a msg respondida foi do próprio bot
+        return originalSender === botId;
+    })();
+
+    
+
+
+    logger.info(`[${group.name}] ${authorName}: ${content}`)
+    
+    const refToBot = botNameUsed || botMentioned || botReplied
 
     // NAO ESQUECER DE NORMALIZAR OS NUMEROS////
     const numbers = {
@@ -86,56 +147,204 @@ export class Bot {
       leh: normalize(phoneNumbers.leh),
     };
 
-    // --- aqui entra tua lógica ---
-    if (senderIdNormalize === phoneNumbers.bot) {
-      // se for o próprio bot, ignora
-      return
-    }
+   
+    // if (senderIdNormalize === phoneNumbers.bot) {
+    //   // se for o próprio bot, ignora
+    //   return
+    // }
 
     // --- 1) Checar bullying direcionado ao bot ---
     const lowerContent = content.toLowerCase();
     const hasBullying = BullyingList.some(b => lowerContent.includes(b.toLowerCase()));
 
-    // --- 2) Responder a saudações ---
-    const greetings = {
-      morning: ["bom dia", "boa manhã"],
-      afternoon: ["boa tarde"],
-      night: ["boa noite", "boa madrugada"]
-    };
+    // --- Saudações ---
+      const greetings = {
+        morning: ["bom dia", "boa manhã"],
+        afternoon: ["boa tarde"],
+        night: ["boa noite", "boa madrugada"]
+      };
 
-    if (botNameUsed && lowerContent.includes("bom dia") || botNameUsed && lowerContent.includes("boa tarde") || botNameUsed && lowerContent.includes("boa noite") || botNameUsed && lowerContent.includes("boa madrugada")) {
-      let response = ""; 
+      // --- Perguntas de turno ---
+      const askMorning = ["é de manhã", "é manhã", "é de manha", "e de manha", "e manhã", "e de manhã"];
+      const askAfternoon = ["é de tarde", "é tarde", "e de tarde", "e tarde"];
+      const askNight = ["é de noite", "é noite", "e de noite", "e noite"];
 
-      // --- verifica se tem alguma saudação ---
-      const saidMorning = greetings.morning.some(g => lowerContent.includes(g));
-      const saidAfternoon = greetings.afternoon.some(g => lowerContent.includes(g));
-      const saidNight = greetings.night.some(g => lowerContent.includes(g));
-
+      // Hora atual
       const currentHour = new Date().getHours();
+      const currentMinute = new Date().getMinutes();
+      const formattedTime = `${currentHour.toString().padStart(2, '0')}:${currentMinute.toString().padStart(2, '0')}`;
+
       const isMorning = currentHour >= 5 && currentHour < 12;
       const isAfternoon = currentHour >= 12 && currentHour < 18;
       const isNight = currentHour >= 18 || currentHour < 5;
 
-      if (saidMorning) {
-        response = isMorning
-          ? goodMorning[Math.floor(Math.random() * goodMorning.length)]
-          : "Não é de manhã ainda 😅";
-      } else if (saidAfternoon) {
-        response = isAfternoon
-          ? goodAfternoon[Math.floor(Math.random() * goodAfternoon.length)]
-          : "Não é de tarde agora 😅";
-      } else if (saidNight) {
-        response = isNight
-          ? goodNight[Math.floor(Math.random() * goodNight.length)]
-          : "Não é de noite ainda 😅";
+      const getCurrentTurn = () => {
+        if (isMorning) return "manhã 🌞";
+        if (isAfternoon) return "tarde 🌇";
+        return "noite 🌙";
+      };
+
+      let response = "";
+
+      if(wrongGreetingsSended.length > 25){
+        response = "Vocês me cansam com essas saudações erradas. Vou desativar as saudações por uma hora. Vão caçar algo melhor pra fazer. 😤";
+        disableGreetings = true
+      }
+
+      // --- 1) Responder a SAUDAÇÕES ---
+      if (refToBot && !disableGreetings && response === "") {
+        if (greetings.morning.some(g => lowerContent.includes(g))) {
+          if (isMorning) {
+            let available = goodMorning.filter(msg => !greetingsSended.includes(msg));
+            response = available.length > 0
+              ? available[Math.floor(Math.random() * available.length)]
+              : `Bom dia ${authorName} 🌞😎✨`;
+            greetingsSended.push(response);
+
+          } else {
+            response = `Salve! Não é de manhã não🤨! Agora é ${getCurrentTurn()}`;
+            wrongGreetingsSended.push(response);
+          }
+        } else if (greetings.afternoon.some(g => lowerContent.includes(g))) {
+          if (isAfternoon) {
+            let available = goodAfternoon.filter(msg => !greetingsSended.includes(msg));
+            response = available.length > 0
+              ? available[Math.floor(Math.random() * available.length)]
+              : `Boa tarde ${authorName} 🌞😎✨`;
+            greetingsSended.push(response);
+          } else {
+            response = `Salve! Não é de tarde não🤨! Agora é ${getCurrentTurn()}`;
+            wrongGreetingsSended.push(response);
+          }
+        } else if (greetings.night.some(g => lowerContent.includes(g))) {
+          if (isNight) {
+            let available = goodNight.filter(msg => !greetingsSended.includes(msg));
+            response = available.length > 0
+              ? available[Math.floor(Math.random() * available.length)]
+              : `Boa noite ${authorName} 🌟😴✨`;
+            greetingsSended.push(response);
+          } else {
+            response = `Salve! Ainda não é noite não🤨! Agora é ${getCurrentTurn()} 👀`;
+            wrongGreetingsSended.push(response);
+          }
+        }
+      }
+
+      // --- 2) Responder a PERGUNTAS DE TEMPO ---
+      if (refToBot && response === "") {
+        if (
+          lowerContent.includes("que horas") ||
+          lowerContent.includes("que hora") ||
+          lowerContent.includes("são horas") ||
+          lowerContent.includes("são que horas") ||
+          lowerContent.includes("quantas horas")
+        ) {
+          response = `Agora são exatamente ${formattedTime} ⏰`;
+        } else if (askMorning.some(p => lowerContent.includes(p))) {
+          response = isMorning
+            ? "Sim, ainda é manhã 🌞"
+            : `Não, não é de manhã não 😅 Agora é ${getCurrentTurn()}`;
+        } else if (askAfternoon.some(p => lowerContent.includes(p))) {
+          response = isAfternoon
+            ? "Sim, é tarde agora 🌇"
+            : `Não, não é de tarde não 😅 Agora é ${getCurrentTurn()}`;
+        } else if (askNight.some(p => lowerContent.includes(p))) {
+          response = isNight
+            ? "Sim, é noite 🌙"
+            : `Ainda não é noite não 😅 Agora é ${getCurrentTurn()}`;
+        }
+      }
+
+      // --- Se tiver resposta, envia ---
+      if (response) {
+        await this.wa.sendMessage(sender, { text: response }, { quoted: msg });
+        console.log("Saudações enviadas: ", wrongGreetingsSended);
+        return;
+      }
+
+    // Responder a texto de comportamento
+
+    const hasBehavior = BehaviorList.some(b => lowerContent.includes(b.toLowerCase()));
+
+    if (refToBot && hasBehavior) {
+      if (behaviorSended.length > 10) {
+        response = "Vocês são chatos demais com esse negócio de comportamento. Vou desativar essas respostas por uma hora. 😤";
+        disableGreetings = true;
+      } else {
+        response = "Me obrigue! Quero ver quem tem coragem! 😤";
+        behaviorSended.push(response);
+      }
+    }
+
+    // --- Responder a declarações de amor ao bot ---
+    if(refToBot && fallingInLove){
+      response = "Legal, agora senta lá! Antes que a Anna, amor da minha vida, te mate!🤖";
+      await this.wa.sendMessage(sender, { text: response }, { quoted: msg });
+      return;
+    }
+
+    // Responder pedido de casamento
+    if(refToBot && marry){
+      
+      if (senderIdNormalize === numbers.anna) {
+          response = "💘👑 Minha Anna… você ainda pergunta? 🤍 Eu aceito casar com você mil vezes, em todas as vidas, em todos os mundos. 🌎✨ Você é meu começo, meu meio e meu fim. 💍😍";
+          await this.wa.sendMessage(sender, { text: response }, { quoted: msg });
+          return;
+      }
+      response = "Casar com você? Tá doida(o)? Quer morrer? A Anna te mata, cão! 🤖👑";
+      await this.wa.sendMessage(sender, { text: response }, { quoted: msg });
+      return;
+    }
+
+    if (refToBot && /(aceita|quer)( se)? casar com/i.test(content) || refToBot && /(casa com|case com)/i.test(content)) {
+        // tenta casar com diferentes regex
+      const regexes = [
+          /aceita casar com (.+?)(\?|$)/i,
+          /quer casar com (.+?)(\?|$)/i,
+          /quer se casar com (.+?)(\?|$)/i,
+          /aceita se casar com (.+?)(\?|$)/i,
+          /casa com (.+?)(\?|$)/i,          
+          /case com (.+?)(\?|$)/i
+      ];
+
+      let nome: string | null = null;
+
+      for (const r of regexes) {
+          const m = content.match(r);
+          if (m?.[1]) { // se existir, já pega
+              nome = m[1].trim();
+              break;
+          }
+      }
+      const undefinedNames = ['a', 'o', '', ' a', ' o'];
+      const isUndefinedName = nome && undefinedNames.includes(nome.toLowerCase().trim());
+      console.log(isUndefinedName)
+
+      if(isUndefinedName) {
+       response = "Casar com quem, doido(a)? 🫏🤣 Com a Anna? 👑💘 Sim, claro, óbvio, só se for agora! 🚀🔥";
+        await this.wa.sendMessage(sender, { text: response }, { quoted: msg });
+        return;
+      }
+      console.log(nome)
+      if(nome && nome.toLocaleLowerCase() === "a anna" || nome && nome.toLocaleLowerCase() === "anna") {
+        response = "Sim, claro, óbvio, só se for agora! 🚀🔥";
+        await this.wa.sendMessage(sender, { text: response }, { quoted: msg });
+        return;
+      }
+
+      if (nome) {
+          response = `Casar com ${nome}? 🤖 Tu surtou foi 😱? Quer que aconteça um assassinato aqui, é??? Não deixe a Anna ver isso não! Apague, apague, apague, apague!!! 😱😱😱`;
+      } else {
+          response = "Casamento? 🤖 Só com o amor da minha vida, Anna! 💘💅🔥💍";
       }
 
       await this.wa.sendMessage(sender, { text: response }, { quoted: msg });
       return;
     }
 
+
     // --- Responder bullying ---
-    if ((botMentioned || botNameUsed) && hasBullying) {
+    if (refToBot && hasBullying) {
       if (senderIdNormalize === numbers.anna) {
         const response = this.msgAboutBullying.toAnna();
         await this.wa.sendMessage(sender, { text: response }, { quoted: msg });
@@ -154,14 +363,19 @@ export class Bot {
       await this.wa.sendMessage(sender, { text: response }, { quoted: msg });
       return;
     }
+
+    const idsBot = [
+      "120363404528960553",
+      "120363402452354299"
+    ]
     // --- Responder menções ou uso do nome do bot ---
-    if (botNameUsed) {      
-      let response = "Oié, como posso ajudar?";
+    if (refToBot) {  
+      console.log(senderIdNormalize, 'meu num', numbers.yu)
+      if(idsBot.some(s => s.includes(authorName))) return;
+      let response = "Olá, " + authorName + "! Como posso ajudar? 🤖👊🏽💪";
        if (senderIdNormalize === numbers.yu) {
           response = this.msgTo.toYu();
-        } else if (senderIdNormalize === numbers.bushido) {
-          response = this.msgTo.toBushido();
-        } else if (senderIdNormalize === numbers.erica) {
+        }  else if (senderIdNormalize === numbers.erica) {
           response = this.msgTo.toErica();
         } else if (senderIdNormalize === numbers.anna) {
           response = this.msgTo.toAnna();
@@ -169,11 +383,21 @@ export class Bot {
           response = this.msgTo.toDira();
         } else if (senderIdNormalize === numbers.leh) {
           response = this.msgTo.toLeh();
+        } else if (senderIdNormalize === numbers.bushido) {
+          response = this.msgTo.toBushido();
         }
 
       await this.wa.sendMessage(sender, { text: response }, { quoted: msg })
       return
     }
+    
+    // --- Comandos de ADMIN ---
+      const context = msg.message?.extendedTextMessage?.contextInfo
+      const quotedMsg = context?.quotedMessage
+      const stanzaId = context?.stanzaId
+      const participant = context?.participant
+      const textQuoted = quotedMsg?.extendedTextMessage?.text
+      const textNormalized = textQuoted && normalizeText(textQuoted)
 
     if (!senderIsAdmin && (content === '&marcar' || content === '&citar' || content === '&menu')) {
       logger.info(`[${group.name}] ${authorName} tentou usar "${content}" sem permissão`)
@@ -181,6 +405,38 @@ export class Bot {
         text: '❌ Apenas administradores podem usar este comando.',
       }, { quoted: msg })
       return
+    }
+
+    // Primeiro, se a pessoa NÃO respondeu a msg
+    if (content === '&citar' && (!quotedMsg || !stanzaId || !participant)) {
+      await this.wa.sendMessage(sender, {
+        text: 'Responda a mensagem que deseja citar com &citar.',
+      }, { quoted: msg })
+      return
+    }    
+
+    if (content === '&citar' && textRemove.some(t => normalizeText(t.toLocaleLowerCase()) === textNormalized?.toLowerCase())) {
+      // índice baseado na quantidade de mensagens já enviadas
+      const idx = countMsgRemovedYou.length
+
+      // se ainda tem frase disponível
+      if (idx < tantrumMsg.length) {
+        const resposta = tantrumMsg[idx]
+
+        await this.wa.sendMessage(sender, {
+          text: resposta,
+        }, { quoted: msg })
+
+        // salva a mensagem enviada pra manter o controle
+        countMsgRemovedYou.push(resposta)
+        return
+      } else {
+        // caso todas já tenham sido usadas
+        await this.wa.sendMessage(sender, {
+          text: '😅 Acabaram minhas birras, não tenho mais o que falar!',
+        }, { quoted: msg })
+        return
+      }
     }
 
     if (content === '&status') {
@@ -192,8 +448,6 @@ export class Bot {
       }, { quoted: msg })
     }
 
-    
-
     if (content === '&marcar') {
       const participantes = await this.wa.getGroupParticipants(sender)
       const mentions = participantes.filter(id => id !== this.wa.getSocket()?.user?.id)
@@ -204,11 +458,7 @@ export class Bot {
       }, { quoted: msg })
     }
 
-    if (content === '&citar') {
-      const context = msg.message?.extendedTextMessage?.contextInfo
-      const quotedMsg = context?.quotedMessage
-      const stanzaId = context?.stanzaId
-      const participant = context?.participant
+    if (content === '&citar') {      
 
       if (!quotedMsg || !stanzaId || !participant) {
         await this.wa.sendMessage(sender, {
@@ -233,13 +483,13 @@ export class Bot {
         text: citadoTexto,
         mentions,
       }, { quoted: msg })
-      }
+    }
     
     if (content === '&menu') {
 
-    await this.wa.sendMessage(sender, {
-      text: commandsMenu,
-    }, { quoted: msg })
+      await this.wa.sendMessage(sender, {
+        text: commandsMenu,
+      }, { quoted: msg })
     }
   }
 }
